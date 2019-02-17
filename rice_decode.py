@@ -70,7 +70,7 @@ def decode_bitString(bString, k):
                 codes.append(quotient + remainder)
                 zero_flag = False
 
-            quotient = '1'           
+            quotient = ''           
             while bit == '1':
                 one_flag = True
                 quotient = quotient + '1'
