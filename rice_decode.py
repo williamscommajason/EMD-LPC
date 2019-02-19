@@ -7,11 +7,13 @@ def BitString(BitString):
         yield bit
 
 
-def decompress(k):
+def decompress():
 
     bString = ''
     with open("rice.bin", "rb") as f:
 
+        k = struct.unpack('@i',f.read(struct.calcsize('i')))[0]
+        
         byte = f.read(1)
 
         while byte != b"":
@@ -29,7 +31,7 @@ def decompress(k):
     f.close()
 
     codes = decode_bitString(bString,k)
-    rice_dictionary = rice_dict(k,4)
+    rice_dictionary = rice_dict(k,2)
     unsigned = []
 
     for i in codes:
@@ -39,6 +41,7 @@ def decompress(k):
             unsigned.append(decode_rice_byte(i,k))
 
     signed = back_to_signed(unsigned)
+    print(signed)
     return signed
             
 
@@ -53,43 +56,47 @@ def decode_bitString(bString, k):
     while True:
 
         bit = next(bString)
-        
+
+        zero_flag = False
+        one_flag = False
+        quotient = ''
+        remainder = ''
         try:
-            quotient = '' 
+            
             if bit == '0' and one_flag == False:
                 
                 quotient = '0' 
                 zero_flag = True
 
             if zero_flag == True and one_flag == False:
-                remainder = ''
                 for i in range(k-1,-1,-1):
+
                     bit = next(bString)
                     remainder = remainder + bit    
 
                 codes.append(quotient + remainder)
                 zero_flag = False
+                continue
+        
+            while bit == '1' and zero_flag == False:
 
-            quotient = ''           
-            while bit == '1':
                 one_flag = True
                 quotient = quotient + '1'
                 bit = next(bString)
+
                 if bit == '0':
-                    
+
                     zero_flag = True
                     quotient = quotient + bit
                     break
         
                
-            if zero_flag == True and one_flag == True:
-                remainder = ''              
+            if zero_flag == True and one_flag == True:              
                 for i in range(k-1,-1,-1):
+
                     bit = next(bString)
                     remainder = remainder + bit    
                 codes.append(quotient + remainder)
-                zero_flag = False
-                one_flag = False
 
         except StopIteration:
             #print("Last element was: ", bit)
@@ -132,7 +139,7 @@ def decode_rice_byte(rb,k):
                 for i in range(k-1,-1,-1):
                     bit = next(rb)
                     remainder = remainder + bit
-            #print(ones)        
+                    
 
             x = ones*(2**k) + int(remainder,2)
            
@@ -168,14 +175,14 @@ def back_to_signed(L):
         if x%2 == 0:
             signed.append(int(x/2))
         if x%2 == 1:
-            signed.append(-(int((x/2) + 1)))
+            signed.append(-int((x+1)/2))
 
     return signed
         
 
 if __name__ == "__main__":
 
-    signed = decompress(3)
-    print(signed)
+    signed = decompress()
+   
     
     
