@@ -132,7 +132,8 @@ def decode_rice_byte(rb,k):
                 for i in range(k-1,-1,-1):
                     bit = next(rb)
                     remainder = remainder + bit
-            print(ones)        
+            #print(ones)        
+
             x = ones*(2**k) + int(remainder,2)
            
             return x
@@ -167,14 +168,14 @@ def back_to_signed(L):
         if x%2 == 0:
             signed.append(int(x/2))
         if x%2 == 1:
-            signed.append(int((x/2) + 1))
+            signed.append(-(int((x/2) + 1)))
 
     return signed
         
 
 if __name__ == "__main__":
 
-    signed = decompress(2)
+    signed = decompress(3)
     print(signed)
     
     
