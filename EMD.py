@@ -44,7 +44,8 @@ class EMD:
         self.interpolate = False
         self.imfs = None
         self.residual = None
-
+        self.encoding = True
+        self.error = []
         for key in config.keys():
             if key in self.__dict__.keys():
                 self.__dict__[key] = config[key]
@@ -393,7 +394,8 @@ class EMD:
         if t is None and self.siglen != 0: t = np.linspace(0, self.siglen - 1, self.siglen)
 
         else: t = np.linspace(0,len(x)-1,len(x))
-
+        
+        self.signal = x
         signal = x
         signal = signal.astype('float64')
         self.siglen = len(x)
@@ -503,11 +505,18 @@ class EMD:
         return imfs
 
     def get_imfs_and_residue(self):
-        return self.imfs, self.residue
+        return self.imfs, self.residual
 
     def get_residue(self):
-        return self.residue
+        return self.residual
+   
+    def get_error(self):
+        if self.encoding == True:
+            error = self.signal - self.residual
+        for i in error:
+            self.error.append(int(round(i)))
 
+        return self.error 
    
 if __name__ == "__main__":
     
@@ -529,6 +538,9 @@ if __name__ == "__main__":
     emd.siglen = length_ts 
     x = simulate.simulate_noise(alpha,white_noise_sigma,length_ts,f_knee,sample_rate)
     x = makewav.floatToint24(x)
-    imfs = emd.emd(x,t)
+    emd.emd(x,t)
+    residual = emd.get_residue()
+    emd.get_error()
+    print(emd.error)
     
 
