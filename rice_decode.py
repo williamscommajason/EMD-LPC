@@ -41,7 +41,7 @@ def decompress():
             unsigned.append(decode_rice_byte(i,k))
 
     signed = back_to_signed(unsigned)
-    print(signed)
+    
     return signed
             
 
