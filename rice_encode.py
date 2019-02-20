@@ -1,6 +1,8 @@
 import struct
 #import StringIO
 import scipy.io
+import math
+import numpy as np
 
 def put_bit(f, b):
 
@@ -28,7 +30,7 @@ def rice_code(f, x, k):
     for i in range(k-1, -1, -1):
         put_bit(f, (x >> i) & 1)
 
-def compress(L, k):
+def signed_to_unsigned(L):
 
     unsigned = []
     for x in L:
@@ -38,10 +40,15 @@ def compress(L, k):
             unsigned.append(2*abs(x) - 1)
         else:
             unsigned.append(x)
-    L = unsigned
+
+    return unsigned
+
+def compress(L):
     
+    L = signed_to_unsigned(L)    
     #f = StringIO.StringIO()
-    f = open('rice.bin','w+b')
+    #f = open('rice.bin','w+b')
+    f,k = get_k(L)
     global buff, filled
     buff = 0
     filled = 0
@@ -54,9 +61,32 @@ def compress(L, k):
 
     return f
 
+def get_k(error):
+
+    rice_base = [2**i for i in range(16)]
+
+    std = math.sqrt(np.var(error))
+    k = rice_base.index(min(rice_base, key = lambda x:abs(x-std)))
+
+    f = open('rice.bin', 'w+b')
+    f.write(struct.pack('@i', k))
+
+    return f,k
+
 if __name__ == '__main__':
     print(struct.pack('BBB', 0b00010010, 0b00111001, 0b01111111))      #see http://fr.wikipedia.org/wiki/Codage_de_Rice#Exemples
-    compress([1,2,3,4,5,1,2,4,3,0],k = 2)
-      
+    compress([1,2,3,4,5,1,2,4,3,0])
+    import scipy.io as io
+    data = io.loadmat('r99.mat')
+    residual = data['residual'][0]
+    residual = residual[:1400]
+    signal = data['signal'][0]
+    signal = signal[:1400]
+    error = signal-residual
     
+    f_error = []
+    for i in range(len(error)):
+        f_error.append(int(round(error[i])))
+    #print(f_error)
+    compress(f_error) 
    
