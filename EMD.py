@@ -182,7 +182,7 @@ class EMD:
     def interp(self, x, discreteMin, discreteMax):
 
         '''takes as input the locations of the discrete minimums and maximums, interpolates to
-        gain a more precise picture of where the mins and maxs are, then outputs those locations
+        gin a more precise picture of where the mins and maxs are, then outputs those locations
         '''
         #create two separate lists, one that contains all the indices (+1) of the duplicates and one that cointains all the non-duplicates
         if len(discreteMin) < 1 or len(discreteMax) < 1:
@@ -344,7 +344,7 @@ class EMD:
 
         return np.all(dx <= 0) or np.all(dx >= 0)
 
-    def check_lossless(self, x):
+    def check_recon(self, x):
         """
         checks to see if reconstructed signal is same as original signal
         """
@@ -364,7 +364,8 @@ class EMD:
         if all([y ==0 for y in abs(x-recon)]):
             self.logger.debug("FINISHED -- RECONSTRUCTION")
             return True       
-        #print(abs(x-recon)) 
+
+ 
 		
         self.logger.debug("NOT FINISHED -- RECONSTRUCTION")
         return False
@@ -473,7 +474,7 @@ class EMD:
             if pSig > 0:
 
                 iniResidual = 10*np.log10(pX/pSig)
-                print(iniResidual)
+                
             else:
                 iniResidual = math.inf
             
@@ -500,7 +501,9 @@ class EMD:
                 self.residual = imfs[-1]
                 
 
-        self.check_lossless(x)
+        self.check_recon(x)
+        self.get_error()
+        
 
         return imfs
 
@@ -515,8 +518,20 @@ class EMD:
             error = self.signal - self.residual
         for i in error:
             self.error.append(int(round(i)))
-
+         
         return self.error 
+
+    def make_lossless(self,lpc_residual):
+        
+                
+        for i in range(len(self.signal)):
+            truncation_error = int(round(self.signal[i] - (int(round(self.error[i] + lpc_residual[i])))))
+            
+            self.error[i] += truncation_error
+
+        return self.error
+
+  
    
 if __name__ == "__main__":
     
@@ -540,7 +555,6 @@ if __name__ == "__main__":
     x = makewav.floatToint24(x)
     emd.emd(x,t)
     residual = emd.get_residue()
-    emd.get_error()
-    print(emd.error)
+    print(emd.error) 
     
 
