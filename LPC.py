@@ -22,9 +22,10 @@ class LPC:
 
 
         self.aa = [1, -2, 1]
+        self.aaa = np.vstack((self.aa,self.aa,self.aa,self.aa))
         self.gains = None
         self.h = frame_width
-        self.npts = None
+        self.npts = 1400
         self.d = None
         self.order = order
         self.amp = None
@@ -98,6 +99,7 @@ class LPC:
         npts = len(err)
         d = np.zeros(npts)
         h = self.h
+        #print(len(d))
 
         for hop in range(nhops):
             hbase = hop*h
@@ -140,6 +142,7 @@ class LPC:
         recon_error = np.zeros(self.npts)
         h = self.h
         nhops = math.floor(self.npts/self.h)
+  
         for i in range(nhops):
             recon_error[(i*h)+2:(i+1)*h] = np.polyval(np.array(fits[i]),np.array(list(range((i*h)+2,(i+1)*h))))
             
@@ -148,7 +151,8 @@ class LPC:
         self.r_err = recon_error
 
         return recon_error
-
+    
+    
     def pack_residual(self):
         packed = []
         packed.append(self.gains)
@@ -164,8 +168,9 @@ class LPC:
         
         f.close()
         return packed
-        
-    def unpack_residual(self):
+    
+    @classmethod    
+    def unpack_residual(cls):
      
         f = open("packed_residual.bin", 'rb')
 
@@ -204,6 +209,6 @@ if __name__ == "__main__":
     amp,gains,fits = lpc.unpack_residual()
     recon_err = lpc.recon_err(amp,fits)
     #print((recon_err - lpc.err).tolist())
-    r_err = lpc.lpc_synth(lpc.a,gains,lpc.r_err)
+    r_err = lpc.lpc_synth(lpc.aaa,gains,lpc.r_err)
     print(ts-r_err)
     
