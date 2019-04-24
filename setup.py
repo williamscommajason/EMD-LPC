@@ -12,19 +12,19 @@ def main():
     with io.open('README.md', encoding="utf8") as f:
         long_description = f.read().strip()
 
-    with open('requirement.txt') as fd:
+    with open('requirements.txt') as fd:
         required = fd.read().splitlines()
 
     setup_params = dict(
-        name="EMD-LPC",
+        name="EMD_LPC",
         version=VERSION,
         description=DESCRIPTION,
         long_description=long_description,
-        url="https://github.com/williamscommajason/EMD-LPC",
+        url="https://github.com/williamscommajason/EMD_LPC",
         author="Jason Williams",
         author_email="williaje@usc.edu",
-        keyboards"integer encoding signal decomposition",
-        packages=["EMD-LPC"],
+        keywords="integer encoding signal decomposition",
+        packages=["src"],
         install_requires=required,
         python_requires='>=3.5, <4'
 

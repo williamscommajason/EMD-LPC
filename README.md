@@ -19,7 +19,7 @@ Simply download this directory either directly from GitHub, or using command lin
 
 Then go into the downloaded project and run from the command line:
 
-> \$ python setup.py install
+> \$ pip3 install .
 
 ## Example
 
