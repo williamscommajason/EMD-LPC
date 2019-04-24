@@ -1,4 +1,4 @@
-#EMD-LPC
+# EMD-LPC
 
 ## Introduction
 
@@ -15,7 +15,7 @@ stopping criterion. Rice encoding is the only current option for residual encodi
 
 Simply download this directory either directly from GitHub, or using command line:
 
-> \$ git clone <>
+> \$ git clone <https://github.com/williamscommajason/EMD-LPC>
 
 Then go into the downloaded project and run from the command line:
 
@@ -36,7 +36,7 @@ nbytes, f = emd.save(ts)
 reconstructed_ts = emd.load(f)
 ```
 
-##Contact
+## Contact
 
 Feel free to contact me with any questions, requests or to say *hi*.
 Contact me through at (williaje@usc.edu).
