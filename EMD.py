@@ -1,8 +1,18 @@
 import numpy as np
 from scipy.interpolate import CubicSpline
 import math
+from math import floor
 import logging
-
+import struct
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+from rice_encode import signed_to_unsigned
+import rice_decode
+from LPC import LPC
+from io import BytesIO
+import dct_encode
+import dct_decode
 class EMD:
     """
     EMD:
@@ -22,7 +32,7 @@ class EMD:
 
     logger = logging.getLogger(__name__)
 
-    def __init__(self, spline_kind = 'cubic', **config):
+    def __init__(self,  spline_kind = 'cubic', **config):
         """Initiate EMD as an instance.
 
         Configuration can be passed as config.
@@ -32,12 +42,12 @@ class EMD:
 
         """
 
-        self.osc = 0
-        self.resolution = 20
-        self.p_resid = 10
+        self.osc = 1
+        self.resolution = 2
+        self.p_resid = 1
         self.alpha = 1
         self.sample_rate = None
-        self.siglen = 1400
+        self.siglen = None
         self.max_iter = math.inf
         self.count = 1
 
@@ -46,6 +56,8 @@ class EMD:
         self.residual = None
         self.encoding = True
         self.error = []
+        self.p = []
+
         for key in config.keys():
             if key in self.__dict__.keys():
                 self.__dict__[key] = config[key]
@@ -391,15 +403,15 @@ class EMD:
               Residual produced from input signal.
 
         """
+        self.siglen = len(x)
 
-        if t is None and self.siglen != 0: t = np.linspace(0, self.siglen - 1, self.siglen)
+        if t is None and self.siglen == None: t = np.linspace(0, self.siglen - 1, self.siglen)
 
         else: t = np.linspace(0,len(x)-1,len(x))
-        
+        self.t = t 
         self.signal = x
         signal = x
         signal = signal.astype('float64')
-        self.siglen = len(x)
         
         pX = np.linalg.norm(x)**2
 
@@ -407,7 +419,9 @@ class EMD:
         iniResidual = 0
         finished = False
 
-        
+        self.textrema = []
+        self.yextrema = []
+ 
         while finished == False and iniResidual < self.p_resid:
 
             iImf = signal
@@ -463,14 +477,21 @@ class EMD:
                 mean = (topenv(t) + botenv(t))/2
 
                 iterations += 1
+            
+            self.textrema.append(parabolicMax[:,0])
+            self.yextrema.append(parabolicMax[:,1])
+            
+            #if iterations == 1:
+            #    self.p = np.polyfit(parabolicMax[:,0],parabolicMax[:,1],20)
 
+                
             iImf = np.array(iImf)
             imfs = np.append(imfs, iImf, axis=0)
             self.count += 1
             signal -= iImf
             pSig = np.linalg.norm(signal)**2
             osc = len(discreteMin) + len(discreteMax)
-
+            print(osc)
             if pSig > 0:
 
                 iniResidual = 10*np.log10(pX/pSig)
@@ -481,6 +502,7 @@ class EMD:
             if self.osc == 0:
                 finished = self.monotone(signal)
             if self.osc != 0:
+                print('osc')
                 finished = osc < self.osc
             
             
@@ -503,7 +525,8 @@ class EMD:
 
         self.check_recon(x)
         self.get_error()
-        
+        #print(self.imfs[0])
+                
 
         return imfs
 
@@ -525,14 +548,89 @@ class EMD:
         
                 
         for i in range(len(self.signal)):
-            truncation_error = int(round(self.signal[i] - (int(round(self.error[i] + lpc_residual[i])))))
+            truncation_error = int(round(self.signal[i]  -  (int(round(self.error[i] + lpc_residual[i])))))
             
             self.error[i] += truncation_error
-
+        
         return self.error
+    
+    @staticmethod
+    def truncate(L):
 
-  
+        return [int(round(x)) for x in L]    
+
+    
+    def save(self,x,filename=None):
+
+        f = BytesIO()
+        fd = BytesIO()
+
+        #EMD
+        self.emd(x)
+
+        #LPC
+        lpc = LPC(2,len(self.residual),len(self.residual))
+        lpc.lpc_fit(self.residual)
+        lpc.get_fits(lpc.err)
+        lpc.get_amp(lpc.err,lpc.h)
+        f = lpc.pack_residual(f)
+        fd = lpc.pack_residual(fd)
+        npts, frame_width, amp, gains, fits, f = lpc.unpack_residual(f)
+        lpc.recon_err(npts, frame_width, amp, fits)
+        r_err = lpc.lpc_synth(lpc.aaa, gains, LPC.r_err, npts, frame_width)
+        
+        
+        emd.make_lossless(r_err)
+        #DCT
+        dct_output = dct_encode.dct_encode(self.error)
+
+        #Encoding  
+      
+        for i in dct_output:
+            f = rice_encode.compress(i,f)
+        
+        if np.var(np.diff(self.error)) < np.var(self.error): 
+            derror = [int(x) for x in np.diff(self.error)]
+            derror.insert(0,1)
+            derror.insert(1,self.error[0])
+            fd = rice_encode.compress(derror,fd)
+        else:
+            fd = rice_encode.compress(self.error,fd)
+    
+        if f.getbuffer().nbytes > fd.getbuffer().nbytes:
+        
+            return fd.getbuffer().nbytes, fd
+
+        else:
    
+            return f.getbuffer().nbytes, f
+        
+        
+    def load(self,f):
+
+        npts, frame_width, amp, gains, fits, f = LPC.unpack_residual(f)                
+        
+        lpc = LPC(2, frame_width, npts)
+        LPC.recon_err(npts, frame_width, amp, fits)
+        r_err = lpc.lpc_synth(lpc.aaa, gains, LPC.r_err, npts, frame_width)
+        
+        lists = rice_decode.decompress(f)
+
+        if len(lists) == 1:
+            error = lists[0]
+            if error[0] == 1:
+               error.pop(0)
+               for i in range(len(error))[1:]:
+                   error[i] += error[i-1] 
+        else:
+            error = dct_decode.dct_decode(lists[0],lists[1],lists[2])
+        
+        
+        r_sig = error + r_err
+
+        return [int(round(x)) for x in r_sig]
+
+ 
 if __name__ == "__main__":
     
     logging.basicConfig(level=logging.DEBUG)
@@ -540,21 +638,21 @@ if __name__ == "__main__":
     import scipy.io as io
     import simulate
     import makewav
-    
+    import rice_encode
+    import bitstring
+    from bitstring import BitArray
+    from bitstring import BitStream
+    np.set_printoptions(threshold=np.nan) 
 
-    alpha = 1.0
-    white_noise_sigma = 1
-    length_ts = 600
-    t = np.linspace(0, length_ts - 1, length_ts)
-    f_knee = 2.0
-    sample_rate = 100.0
-
+    #x = np.floor(np.random.normal(size=1200,scale=20,loc=0)) 
+    x = np.load('timestream1008.npy')
     emd = EMD()
-    emd.siglen = length_ts 
-    x = simulate.simulate_noise(alpha,white_noise_sigma,length_ts,f_knee,sample_rate)
-    x = makewav.floatToint24(x)
-    emd.emd(x,t)
-    residual = emd.get_residue()
-    print(emd.error) 
+    nbytes, f = emd.save(x)
+    recon = emd.load(f)
+    print(nbytes)
+    print(np.array(x) - np.array(recon))
+    #print(len(recon))
+        
     
+        
 
