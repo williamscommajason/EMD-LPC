@@ -24,7 +24,7 @@ def get_dct(x):
   
     return dx[0:needed+2,0],dx[0:needed+2,1]
 
-def dct_encode(x):
+def encode(x):
 
     indices,values = get_dct(x)
     

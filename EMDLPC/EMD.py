@@ -7,13 +7,14 @@ import struct
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-from EMDLPC.rice_encode import signed_to_unsigned
-import EMDLPC.rice_encode   
-import EMDLPC.rice_decode
+from EMDLPC.rice_encode import *
+from EMDLPC.rice_decode import *
 from EMDLPC.LPC import LPC
 from io import BytesIO
-import EMDLPC.dct_encode
-import EMDLPC.dct_decode
+from EMDLPC.dct_encode import *
+from EMDLPC.dct_decode import *
+
+
 class EMD:
     """
     EMD:
@@ -492,7 +493,7 @@ class EMD:
             signal -= iImf
             pSig = np.linalg.norm(signal)**2
             osc = len(discreteMin) + len(discreteMax)
-            print(osc)
+            
             if pSig > 0:
 
                 iniResidual = 10*np.log10(pX/pSig)
@@ -583,20 +584,20 @@ class EMD:
         
         self.make_lossless(r_err)
         #DCT
-        dct_output = dct_encode.dct_encode(self.error)
+        dct_output = encode(self.error)
 
         #Encoding  
       
         for i in dct_output:
-            f = rice_encode.compress(i,f)
+            f = compress(i,f)
         
         if np.var(np.diff(self.error)) < np.var(self.error): 
             derror = [int(x) for x in np.diff(self.error)]
             derror.insert(0,1)
             derror.insert(1,self.error[0])
-            fd = rice_encode.compress(derror,fd)
+            fd = compress(derror,fd)
         else:
-            fd = rice_encode.compress(self.error,fd)
+            fd = compress(self.error,fd)
     
         if f.getbuffer().nbytes > fd.getbuffer().nbytes:
         
@@ -615,7 +616,7 @@ class EMD:
         LPC.recon_err(npts, frame_width, amp, fits)
         r_err = lpc.lpc_synth(lpc.aaa, gains, LPC.r_err, npts, frame_width)
         
-        lists = rice_decode.decompress(f)
+        lists = decompress(f)
 
         if len(lists) == 1:
             error = lists[0]
@@ -624,7 +625,7 @@ class EMD:
                for i in range(len(error))[1:]:
                    error[i] += error[i-1] 
         else:
-            error = dct_decode.dct_decode(lists[0],lists[1],lists[2])
+            error = decode(lists[0],lists[1],lists[2])
         
         
         r_sig = error + r_err
@@ -643,7 +644,7 @@ if __name__ == "__main__":
     import bitstring
     from bitstring import BitArray
     from bitstring import BitStream
-    np.set_printoptions(threshold=np.nan) 
+   
 
     #x = np.floor(np.random.normal(size=1200,scale=20,loc=0)) 
     x = np.load('timestream1008.npy')

@@ -3,7 +3,7 @@ import scipy.fftpack as fft
 import numpy as np
 import scipy.io as io
 
-def dct_decode(dct_error,indices,values):
+def decode(dct_error,indices,values):
 
     
     if dct_error[0] == 1:
@@ -26,7 +26,6 @@ def dct_decode(dct_error,indices,values):
 
 
     if indices[0] == 1:
-        print(indices)
         indices.pop(0)
         for i in range(len(indices))[1:]:
             indices[i] += indices[i-1]
@@ -51,7 +50,7 @@ def dct_decode(dct_error,indices,values):
 
 if __name__ == '__main__':
 
-    error = dct_decode()
+    error = decode()
     oerror = io.loadmat('error.mat')['error'][0]
     oerror = [int(x) for x in oerror]
 #    print((np.array(oerror)-np.array(error)).tolist())
