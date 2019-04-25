@@ -7,12 +7,13 @@ import struct
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-from rice_encode import signed_to_unsigned
-import rice_decode
-from LPC import LPC
+from EMDLPC.rice_encode import signed_to_unsigned
+import EMDLPC.rice_encode   
+import EMDLPC.rice_decode
+from EMDLPC.LPC import LPC
 from io import BytesIO
-import dct_encode
-import dct_decode
+import EMDLPC.dct_encode
+import EMDLPC.dct_decode
 class EMD:
     """
     EMD:
@@ -580,7 +581,7 @@ class EMD:
         r_err = lpc.lpc_synth(lpc.aaa, gains, LPC.r_err, npts, frame_width)
         
         
-        emd.make_lossless(r_err)
+        self.make_lossless(r_err)
         #DCT
         dct_output = dct_encode.dct_encode(self.error)
 

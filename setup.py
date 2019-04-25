@@ -6,7 +6,7 @@ DESCRIPTION= "Integer encoding through Empirical Mode Decomposition (EMD) and Li
 
 def main():
     import io
-    from setuptools import setup
+    from setuptools import setup, find_packages
 
 
     with io.open('README.md', encoding="utf8") as f:
@@ -16,7 +16,7 @@ def main():
         required = fd.read().splitlines()
 
     setup_params = dict(
-        name="EMD_LPC",
+        name="EMDLPC",
         version=VERSION,
         description=DESCRIPTION,
         long_description=long_description,
@@ -24,8 +24,8 @@ def main():
         author="Jason Williams",
         author_email="williaje@usc.edu",
         keywords="integer encoding signal decomposition",
-        packages=["src"],
-        install_requires=required,
+        packages=find_packages(),
+        #install_requires=required,
         python_requires='>=3.5, <4'
 
     )

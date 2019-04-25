@@ -1,4 +1,4 @@
-import rice_decode
+import EMDLPC.rice_decode
 import scipy.fftpack as fft
 import numpy as np
 import scipy.io as io

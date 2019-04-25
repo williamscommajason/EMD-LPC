@@ -1,7 +1,7 @@
 import scipy.fftpack as fft
 import numpy as np 
 from numpy.linalg import norm
-import rice_encode 
+import EMDLPC.rice_encode 
 
 def get_dct(x):
     
