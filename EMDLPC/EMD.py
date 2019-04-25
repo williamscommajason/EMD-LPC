@@ -504,7 +504,6 @@ class EMD:
             if self.osc == 0:
                 finished = self.monotone(signal)
             if self.osc != 0:
-                print('osc')
                 finished = osc < self.osc
             
             
