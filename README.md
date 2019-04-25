@@ -27,7 +27,7 @@ In most cases default settings are enough. Simply import `EMD` and pass your sig
 instance or to `emd()` method.
 
 ```python
-from EMD_LPC import *
+from EMDLPC import EMD
 import numpy as np
 
 ts = np.floor(np.random.normal(size=1200,scale=20,loc=0))
