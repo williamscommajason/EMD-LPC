@@ -15,11 +15,11 @@ stopping criterion. Rice encoding is the only current option for residual encodi
 
 Simply download this directory either directly from GitHub, or using command line:
 
-> \$ git clone <https://github.com/williamscommajason/EMD-LPC>
+> \$ git clone <https://github.com/williamscommajason/EMD_LPC>
 
 Then go into the downloaded project and run from the command line:
 
-> \$ pip3 install .
+> \$ python3 setup.py install
 
 ## Example
 
@@ -31,8 +31,8 @@ from EMDLPC import EMD
 import numpy as np
 
 ts = np.floor(np.random.normal(size=1200,scale=20,loc=0))
-emd = EMD()
-nbytes, f = emd.save(ts)
+emd = EMD.EMD()
+n_bytes, f = emd.save(ts)
 reconstructed_ts = emd.load(f)
 ```
 
