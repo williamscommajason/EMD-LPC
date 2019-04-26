@@ -23,8 +23,8 @@ Then go into the downloaded project and run from the command line:
 
 ## Example
 
-In most cases default settings are enough. Simply import `EMD` and pass your signal to 
-instance or to `emd()` method.
+In most cases default settings are enough. Simply import `EMD` and pass your signal `save()` method
+to encode your signal to a `BytesIO` object.
 
 ```python
 from EMDLPC import EMD
