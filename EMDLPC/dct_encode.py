@@ -3,7 +3,7 @@ import numpy as np
 from numpy.linalg import norm
 import EMDLPC.rice_encode 
 
-def get_dct(x):
+def get_dct(x,ratio):
     
     xx = fft.dct(x,norm='ortho')
     dx = np.zeros((len(x),2))
@@ -14,7 +14,7 @@ def get_dct(x):
 
     i = 0
     
-    while norm(dx[:i,1])/norm(dx[:,1]) < .99:
+    while norm(dx[:i,1])/norm(dx[:,1]) < ratio:
 
         i += 1
         norm(dx[:i,1])/norm(dx[:i,1])
@@ -24,9 +24,9 @@ def get_dct(x):
   
     return dx[0:needed+2,0],dx[0:needed+2,1]
 
-def encode(x):
+def encode(x,ratio):
 
-    indices,values = get_dct(x)
+    indices,values = get_dct(x,ratio)
     
     indices = [int(x) for x in indices]
     values = [int(x) for x in values]
