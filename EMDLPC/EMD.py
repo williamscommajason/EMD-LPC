@@ -563,8 +563,14 @@ class EMD:
     
     def save(self,x,filename=None):
 
-        f = BytesIO()
-        fd = BytesIO()
+        if filename is not None:
+            f = open(filename + '.emd', 'w+b')
+            fd = open(filename + '.emd', 'w+b')
+
+        else:
+        
+            f = BytesIO()
+            fd = BytesIO()
 
         #EMD
         self.emd(x)
@@ -583,7 +589,7 @@ class EMD:
         
         self.make_lossless(r_err)
         #DCT
-        dct_output = encode(self.error)
+        dct_output = encode(self.error,.99)
 
         #Encoding  
       
@@ -598,13 +604,13 @@ class EMD:
         else:
             fd = compress(self.error,fd)
     
-        if f.getbuffer().nbytes > fd.getbuffer().nbytes:
+        if f.seek(0,os.SEEK_END) > fd.seek(0,os.SEEK_END):
         
-            return fd.getbuffer().nbytes, fd
+            return fd.seek(0,os.SEEK_END), fd
 
         else:
    
-            return f.getbuffer().nbytes, f
+            return f.seek(0,os.SEEK_END), f
         
         
     def load(self,f):

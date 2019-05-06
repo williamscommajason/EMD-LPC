@@ -1,5 +1,6 @@
 import struct
 import os
+import io
 
 def BitString(BitString):
 
@@ -14,41 +15,52 @@ def decompress(f):
 
     lists = []
     byte = ""
-    while f.getbuffer().nbytes > f.tell(): 
 
-        k = struct.unpack('@i',f.read(struct.calcsize('i')))[0]
-        size = struct.unpack('@Q',f.read(struct.calcsize('Q')))[0]         
-        bString = ""
+    if isinstance(f, io.BufferedRandom):
+        nbytes = os.stat(f.fileno()).st_size
 
-        for i in range(size): 
+    else:
+        nbytes = f.getbuffer().nbytes
 
-            byte = f.read(1)
-            hexbyte = struct.unpack("@B",byte)[0]
-            binary = "{0:b}".format(hexbyte)
+    while nbytes > f.tell(): 
 
-            if len(binary) < 8:
-                for i in range(8 - len(binary)):
-                    binary = '0' + binary
+        try:
+            k = struct.unpack('@i',f.read(struct.calcsize('i')))[0]
+            size = struct.unpack('@Q',f.read(struct.calcsize('Q')))[0]         
+            bString = ""
 
-            bString = bString + binary
+            for i in range(size): 
+
+                byte = f.read(1)
+                hexbyte = struct.unpack("@B",byte)[0]
+                binary = "{0:b}".format(hexbyte)
+
+                if len(binary) < 8:
+                    for i in range(8 - len(binary)):
+                        binary = '0' + binary
+
+                bString = bString + binary
                              
     
-        codes = decode_bitString(bString,k)
-        rice_dictionary = rice_dict(k,50)
+            codes = decode_bitString(bString,k)
+            rice_dictionary = rice_dict(k,50)
    
-        unsigned = []
+            unsigned = []
     
 
-        for i in codes:
-            if i in rice_dictionary.keys():
-                unsigned.append(rice_dictionary[i])
-            else:
-                unsigned.append(decode_rice_byte(i,k))
+            for i in codes:
+                if i in rice_dictionary.keys():
+                    unsigned.append(rice_dictionary[i])
+                else:
+                    unsigned.append(decode_rice_byte(i,k))
 
-        signed = back_to_signed(unsigned)
+            signed = back_to_signed(unsigned)
 
-        lists.append(signed)    
-             
+            lists.append(signed)    
+        
+        except:
+            return lists     
+
     return lists
             
 
