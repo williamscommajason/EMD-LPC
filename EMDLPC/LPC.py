@@ -241,7 +241,9 @@ class LPC:
     def unpack_residual(cls,f):
         
         f.seek(0)
- 
+
+        sign = struct.unpack('@B',f.read(struct.calcsize('B')))[0]
+        
         npts = struct.unpack('@I',f.read(struct.calcsize('I')))[0]
         frame_size = struct.unpack('@I',f.read(struct.calcsize('I')))[0]
         nhops = math.floor(npts/frame_size)
@@ -274,13 +276,14 @@ class LPC:
                 fits = fits.tolist()                     
                 break
         '''
+        
         for i in range(2):
             fits.append(struct.unpack('@d',f.read(struct.calcsize('d')))[0])
 
         fits = np.reshape(fits,(1,2))
         fits = fits.tolist()
         
-        return npts, frame_size, amp, gains, fits, f
+        return sign, npts, frame_size, amp, gains, fits, f
        
                 
 

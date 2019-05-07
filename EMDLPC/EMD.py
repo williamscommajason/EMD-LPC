@@ -13,7 +13,9 @@ from EMDLPC.LPC import LPC
 from io import BytesIO
 from EMDLPC.dct_encode import *
 from EMDLPC.dct_decode import *
-
+import os
+import scipy
+import scipy.signal as sig
 
 class EMD:
     """
@@ -565,16 +567,27 @@ class EMD:
 
         if filename is not None:
             f = open(filename + '.emd', 'w+b')
-            fd = open(filename + '.emd', 'w+b')
-
+            fd = open(filename + '1.emd', 'w+b')
+            fd1 = open(filename + '2.emd', 'w+b')
         else:
         
             f = BytesIO()
             fd = BytesIO()
+            fd1 = BytesIO()
 
+        #FILTER
+        even = all([i%2 == 0 for i in x])
+        
+        fd1.write(struct.pack('@B',0))
+        x_filtered = sig.lfilter(np.array([.5,-.5]),np.array([1.0]),x)
+        x_filtered = [round(i) for i in x_filtered]
+        fd1 = rice_encode.compress(x_filtered,fd1)
+       
+        
         #EMD
         self.emd(x)
-
+        f.write(struct.pack('@B',1))
+        fd.write(struct.pack('@B',1))
         #LPC
         lpc = LPC(2,len(self.residual),len(self.residual))
         lpc.lpc_fit(self.residual)
@@ -582,7 +595,8 @@ class EMD:
         lpc.get_amp(lpc.err,lpc.h)
         f = lpc.pack_residual(f)
         fd = lpc.pack_residual(fd)
-        npts, frame_width, amp, gains, fits, f = lpc.unpack_residual(f)
+        
+        sign, npts, frame_width, amp, gains, fits, f = lpc.unpack_residual(f)
         lpc.recon_err(npts, frame_width, amp, fits)
         r_err = lpc.lpc_synth(lpc.aaa, gains, LPC.r_err, npts, frame_width)
         
@@ -597,43 +611,68 @@ class EMD:
             f = compress(i,f)
         
         if np.var(np.diff(self.error)) < np.var(self.error): 
+
             derror = [int(x) for x in np.diff(self.error)]
             derror.insert(0,1)
             derror.insert(1,self.error[0])
             fd = compress(derror,fd)
+
         else:
             fd = compress(self.error,fd)
     
-        if f.seek(0,os.SEEK_END) > fd.seek(0,os.SEEK_END):
+        if f.seek(0,os.SEEK_END) > fd.seek(0,os.SEEK_END) and fd1.seek(0,os.SEEK_END) > fd.seek(0,os.SEEK_END):
+
+            return fd.seek(0,os.SEEK_END), fd,
+
+        elif fd.seek(0,os.SEEK_END) > f.seek(0,os.SEEK_END) and fd1.seek(0,os.SEEK_END) > f.seek(0,os.SEEK_END):
+
+            return f.seek(0,os.SEEK_END), f,
+
+        elif even == True:
+
+            return fd1.seek(0,os.SEEK_END), fd1
+        
+        elif fd.seek(0,os.SEEK_END) > f.seek(0,os.SEEK_END):
+
+            return f.seek(0,os.SEEK_END), f
+
+        else:
         
             return fd.seek(0,os.SEEK_END), fd
-
-        else:
-   
-            return f.seek(0,os.SEEK_END), f
-        
-        
     def load(self,f):
 
-        npts, frame_width, amp, gains, fits, f = LPC.unpack_residual(f)                
+        sign, npts, frame_width, amp, gains, fits, f = LPC.unpack_residual(f)                
         
-        lpc = LPC(2, frame_width, npts)
-        LPC.recon_err(npts, frame_width, amp, fits)
-        r_err = lpc.lpc_synth(lpc.aaa, gains, LPC.r_err, npts, frame_width)
-        
-        lists = decompress(f)
+        if sign == 1:
 
-        if len(lists) == 1:
-            error = lists[0]
-            if error[0] == 1:
-               error.pop(0)
-               for i in range(len(error))[1:]:
-                   error[i] += error[i-1] 
+            lpc = LPC(2, frame_width, npts)
+            LPC.recon_err(npts, frame_width, amp, fits)
+            r_err = lpc.lpc_synth(lpc.aaa, gains, LPC.r_err, npts, frame_width)
+        
+            lists = decompress(f)
+
+            if len(lists) == 1:
+                error = lists[0]
+                if error[0] == 1:
+                    error.pop(0)
+                    for i in range(len(error))[1:]:
+                        error[i] += error[i-1] 
+            else:
+                error = decode(lists[0],lists[1],lists[2])
+        
+        
+            r_sig = error + r_err
+
         else:
-            error = decode(lists[0],lists[1],lists[2])
-        
-        
-        r_sig = error + r_err
+            print('hi')
+            f.seek(1)
+
+            lists = decompress(f)
+
+            x_filtered = lists[0]
+            print(x_filtered)
+            r_sig = sig.lfilter(np.array([1.0]),np.array([.5,-.5]),x_filtered)
+            #r_sig = [i/2 for i in r_sig]
 
         return [int(round(x)) for x in r_sig]
 
@@ -651,14 +690,16 @@ if __name__ == "__main__":
     from bitstring import BitStream
    
 
-    #x = np.floor(np.random.normal(size=1200,scale=20,loc=0)) 
-    x = np.load('timestream1008.npy')
+    x = np.floor(np.random.normal(size=1200,scale=20,loc=0)) 
+    #print(x.tolist())
+    #x = np.load('timestream6161.npy')
     emd = EMD()
     nbytes, f = emd.save(x)
     recon = emd.load(f)
-    print(nbytes)
-    print(np.array(x) - np.array(recon))
-    #print(len(recon))
+    #print(nbytes)
+    #print(np.array(x) - np.array(recon))
+    d = np.array(x)-np.array(recon)
+    #print(d.tolist())
         
     
         
