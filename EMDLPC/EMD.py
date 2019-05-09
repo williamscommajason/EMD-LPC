@@ -7,12 +7,12 @@ import struct
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-from EMDLPC.rice_encode import *
-from EMDLPC.rice_decode import *
-from EMDLPC.LPC import LPC
+from rice_encode import *
+from rice_decode import *
+from LPC import LPC
 from io import BytesIO
-from EMDLPC.dct_encode import *
-from EMDLPC.dct_decode import *
+from dct_decode import * 
+from dct_encode import * 
 import os
 import scipy
 import scipy.signal as sig
@@ -565,6 +565,12 @@ class EMD:
     
     def save(self,x,filename=None):
 
+        x = np.nan_to_num(x)
+        locs = np.where(x == np.float64(0))
+        locs = locs[0]
+        for i in locs:
+            x[i] = x[i-1]
+        
         if filename is not None:
             f = open(filename + '.emd', 'w+b')
             fd = open(filename + '1.emd', 'w+b')
@@ -577,13 +583,18 @@ class EMD:
 
         #FILTER
         even = all([i%2 == 0 for i in x])
-        
+    
         fd1.write(struct.pack('@B',0))
+        
+            
         x_filtered = sig.lfilter(np.array([.5,-.5]),np.array([1.0]),x)
         x_filtered = [round(i) for i in x_filtered]
         fd1 = rice_encode.compress(x_filtered,fd1)
        
         
+        
+            
+
         #EMD
         self.emd(x)
         f.write(struct.pack('@B',1))
@@ -643,6 +654,7 @@ class EMD:
 
         sign, npts, frame_width, amp, gains, fits, f = LPC.unpack_residual(f)                
         
+        
         if sign == 1:
 
             lpc = LPC(2, frame_width, npts)
@@ -650,10 +662,11 @@ class EMD:
             r_err = lpc.lpc_synth(lpc.aaa, gains, LPC.r_err, npts, frame_width)
         
             lists = decompress(f)
-
+            
+        
             if len(lists) == 1:
                 error = lists[0]
-                if error[0] == 1:
+                if error[0] == 1 and len(error) > npts:
                     error.pop(0)
                     for i in range(len(error))[1:]:
                         error[i] += error[i-1] 
@@ -670,7 +683,7 @@ class EMD:
             lists = decompress(f)
 
             x_filtered = lists[0]
-            print(x_filtered)
+            
             r_sig = sig.lfilter(np.array([1.0]),np.array([.5,-.5]),x_filtered)
             #r_sig = [i/2 for i in r_sig]
 
