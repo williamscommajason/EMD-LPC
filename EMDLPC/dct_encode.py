@@ -24,7 +24,7 @@ def get_dct(x,ratio):
   
     return dx[0:needed+2,0],dx[0:needed+2,1]
 
-def encode(x,ratio):
+def dct_encode(x,ratio):
 
     indices,values = get_dct(x,ratio)
     
@@ -39,38 +39,38 @@ def encode(x,ratio):
     xx = fft.idct(xerror,norm='ortho')
     error = [int(round(j)) for j in xx-x]
    
-
+    '''
     if np.var(error) < np.var(np.diff(error)):
-        error.insert(0,0) 
+        error.insert(0,'0') 
         #rice_encode.compress(error,'dct_error.bin')
     else:
         derror = [int(x) for x in np.diff(error)]
-        derror.insert(0,1)
+        derror.insert(0,'1')
         derror.insert(1,error[0])
         error = derror
         #rice_encode.compress(derror,'dct_error.bin')
 
     if np.var(indices) < np.var(np.diff(indices)):
-        indices.insert(0,0)
+        indices.insert(0,'0')
         #rice_encode.compress(indices,'indices.bin')
     else:
         dindices = [int(x) for x in np.diff(indices)]
-        dindices.insert(0,1)
+        dindices.insert(0,'1')
         dindices.insert(1,indices[0])
         indices = dindices
         #rice_encode.compress(dindices,'indices.bin')
 
     if np.var(values) < np.var(np.diff(values)):
-        values.insert(0,0)
+        values.insert(0,'0')
         #rice_encode.compress(values,'values.bin')
     else:
         dvalues = [int(x) for x in np.diff(values)]
-        dvalues.insert(0,1)
+        dvalues.insert(0,'1')
         dvalues.insert(1,values[0])
         values = dvalues
         #rice_encode.compress(dvalues,'values.bin')
 
-
+    '''
     return error, indices, values
 
 if __name__ == '__main__':

@@ -4,34 +4,6 @@ import numpy as np
 import scipy.io as io
 
 def decode(dct_error,indices,values):
-
-    
-    if dct_error[0] == 1:
-
-        dct_error.pop(0)
-        for i in range(len(dct_error))[1:]:
-            dct_error[i] += dct_error[i-1]
-                
-    else:
-        dct_error.pop(0)
-        
-    if values[0] == 1:
-
-        values.pop(0)
-        for i in range(len(values))[1:]:
-            values[i] += values[i-1]
-
-    else:
-        values.pop(0)
-
-
-    if indices[0] == 1:
-        indices.pop(0)
-        for i in range(len(indices))[1:]:
-            indices[i] += indices[i-1]
-
-    else:
-        indices.pop(0)
         
 
     xerror = np.zeros(len(dct_error))

@@ -7,12 +7,12 @@ import struct
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-from rice_encode import *
-from rice_decode import *
-from LPC import LPC
+from EMDLPC.rice_encode import *
+from EMDLPC.rice_decode import *
+from EMDLPC.LPC import LPC
 from io import BytesIO
-from dct_decode import * 
-from dct_encode import * 
+from EMDLPC.dct_decode import *
+from EMDLPC.dct_encode import *
 import os
 import scipy
 import scipy.signal as sig
@@ -47,7 +47,7 @@ class EMD:
         """
 
         self.osc = 1
-        self.resolution = 2
+        self.resolution = 20
         self.p_resid = 1
         self.alpha = 1
         self.sample_rate = None
@@ -100,10 +100,10 @@ class EMD:
         discreteMax = []
 
         for i in range(1,len(x)-1):
-            if x[i-1] < x[i] and x[i] > x[i+1]: #Maximum
+            if x[i-1] < x[i] and x[i] > x[i+1]: #and x[i-2] < x[i] and x[i] > x[i+2] and x[i-3] < x[i] and x[i] > x[i+3] and x[i-4] < x[i] and x[i] > x[i+4] and x[i-5] < x[i] and x[i] > x[i+5]: #Maximum
                 discreteMax.append([i,x[i]])
 
-            if x[i-1] > x[i] and x[i] < x[i+1]: #Minimum
+            if x[i-1] > x[i] and x[i] < x[i+1]: # and x[i-2] > x[i] and x[i] < x[i+2] and x[i-3] > x[i] and x[i] < x[i+3] and x[i-4] > x[i] and x[i] < x[i+4] and x[i-5] > x[i] and x[i] < x[i+5]: #Minimum
                 discreteMin.append([i,x[i]])
 
             '''this is to handle the off chance of us sampling several minimums of equal
@@ -506,6 +506,7 @@ class EMD:
             if self.osc == 0:
                 finished = self.monotone(signal)
             if self.osc != 0:
+                
                 finished = osc < self.osc
             
             
@@ -549,9 +550,9 @@ class EMD:
 
     def make_lossless(self,lpc_residual):
         
-                
+        
         for i in range(len(self.signal)):
-            truncation_error = int(round(self.signal[i]  -  (int(round(self.error[i] + lpc_residual[i])))))
+            truncation_error = int(round(self.signal[i] - (int(round(self.error[i] + lpc_residual[i])))))
             
             self.error[i] += truncation_error
         
@@ -565,40 +566,33 @@ class EMD:
     
     def save(self,x,filename=None):
 
-        x = np.nan_to_num(x)
-        locs = np.where(x == np.float64(0))
-        locs = locs[0]
-        for i in locs:
-            x[i] = x[i-1]
         
         if filename is not None:
-            f = open(filename + '.emd', 'w+b')
+            f = open(filename + '.emd','w+b')
             fd = open(filename + '1.emd', 'w+b')
             fd1 = open(filename + '2.emd', 'w+b')
+
         else:
-        
+ 
             f = BytesIO()
             fd = BytesIO()
-            fd1 = BytesIO()
+            fd1 = BytesIO()        
 
         #FILTER
-        even = all([i%2 == 0 for i in x])
-    
-        fd1.write(struct.pack('@B',0))
-        
-            
-        x_filtered = sig.lfilter(np.array([.5,-.5]),np.array([1.0]),x)
-        x_filtered = [round(i) for i in x_filtered]
-        fd1 = rice_encode.compress(x_filtered,fd1)
-       
-        
-        
-            
 
+        even = all([i%2 == 0 for i in x])
+        
+        fd1.write(struct.pack('@B',0))
+        x_filtered = sig.lfilter(np.array([.5,-.5]),np.array([1.0]),x)
+        
+        fd1.write(struct.pack('@?',False))
+        fd1 = compress(x_filtered,fd1)
+        
         #EMD
         self.emd(x)
         f.write(struct.pack('@B',1))
         fd.write(struct.pack('@B',1))
+        
         #LPC
         lpc = LPC(2,len(self.residual),len(self.residual))
         lpc.lpc_fit(self.residual)
@@ -606,70 +600,87 @@ class EMD:
         lpc.get_amp(lpc.err,lpc.h)
         f = lpc.pack_residual(f)
         fd = lpc.pack_residual(fd)
-        
         sign, npts, frame_width, amp, gains, fits, f = lpc.unpack_residual(f)
         lpc.recon_err(npts, frame_width, amp, fits)
         r_err = lpc.lpc_synth(lpc.aaa, gains, LPC.r_err, npts, frame_width)
-        
+
         
         self.make_lossless(r_err)
         #DCT
-        dct_output = encode(self.error,.99)
+        dct_output = dct_encode(self.error,.99)
+        dct_output1 = dct_encode(self.error,.999)
 
         #Encoding  
       
         for i in dct_output:
-            f = compress(i,f)
+            if np.var(i) < np.var(np.diff(i)):
+                
+                f.write(struct.pack('@?',False))
+                f = compress(i,f)
+                
+            else:
+                ii = np.diff(i)
+                ii = ii.tolist()
+                ii.insert(0,i[0])
+                
+                f.write(struct.pack('@?',True))
+                f = compress(ii,f)
         
         if np.var(np.diff(self.error)) < np.var(self.error): 
-
+           
             derror = [int(x) for x in np.diff(self.error)]
-            derror.insert(0,1)
-            derror.insert(1,self.error[0])
+            derror.insert(0,self.error[0])
+            fd.write(struct.pack('@?',True))
+           
             fd = compress(derror,fd)
-
+            
         else:
+            fd.write(struct.pack('@?',False))
             fd = compress(self.error,fd)
-    
+         
+        
+ 
         if f.seek(0,os.SEEK_END) > fd.seek(0,os.SEEK_END) and fd1.seek(0,os.SEEK_END) > fd.seek(0,os.SEEK_END):
-
-            return fd.seek(0,os.SEEK_END), fd,
+            #print('1') 
+            return fd.seek(0,os.SEEK_END), fd, 
 
         elif fd.seek(0,os.SEEK_END) > f.seek(0,os.SEEK_END) and fd1.seek(0,os.SEEK_END) > f.seek(0,os.SEEK_END):
-
-            return f.seek(0,os.SEEK_END), f,
+            #print('2')
+            return f.seek(0,os.SEEK_END), f, 
 
         elif even == True:
-
+            #print('3')    
             return fd1.seek(0,os.SEEK_END), fd1
-        
-        elif fd.seek(0,os.SEEK_END) > f.seek(0,os.SEEK_END):
 
+        elif fd.seek(0, os.SEEK_END) > f.seek(0,os.SEEK_END):
+            #print('4')
             return f.seek(0,os.SEEK_END), f
 
         else:
-        
+            #print('5')
             return fd.seek(0,os.SEEK_END), fd
+            
+        
     def load(self,f):
 
         sign, npts, frame_width, amp, gains, fits, f = LPC.unpack_residual(f)                
         
-        
         if sign == 1:
-
             lpc = LPC(2, frame_width, npts)
             LPC.recon_err(npts, frame_width, amp, fits)
             r_err = lpc.lpc_synth(lpc.aaa, gains, LPC.r_err, npts, frame_width)
-        
+            
             lists = decompress(f)
             
-        
             if len(lists) == 1:
                 error = lists[0]
+                
+                '''
                 if error[0] == 1 and len(error) > npts:
                     error.pop(0)
                     for i in range(len(error))[1:]:
                         error[i] += error[i-1] 
+                '''
             else:
                 error = decode(lists[0],lists[1],lists[2])
         
@@ -677,16 +688,14 @@ class EMD:
             r_sig = error + r_err
 
         else:
-            print('hi')
-            f.seek(1)
-
-            lists = decompress(f)
-
-            x_filtered = lists[0]
             
-            r_sig = sig.lfilter(np.array([1.0]),np.array([.5,-.5]),x_filtered)
-            #r_sig = [i/2 for i in r_sig]
-
+            f.seek(1)
+            
+            lists = decompress(f)
+            
+            x_filtered = lists[0]
+            r_sig = x_filtered = sig.lfilter(np.array([1.0]),np.array([.5,-.5]),x_filtered)
+            
         return [int(round(x)) for x in r_sig]
 
  
@@ -701,19 +710,32 @@ if __name__ == "__main__":
     import bitstring
     from bitstring import BitArray
     from bitstring import BitStream
-   
+    
 
     x = np.floor(np.random.normal(size=1200,scale=20,loc=0)) 
-    #print(x.tolist())
-    #x = np.load('timestream6161.npy')
+    x = np.load('timestream1001.npy')
+    #fo = open('rice_error.bin','w+b')
+    
     emd = EMD()
-    nbytes, f = emd.save(x)
-    recon = emd.load(f)
-    #print(nbytes)
-    #print(np.array(x) - np.array(recon))
-    d = np.array(x)-np.array(recon)
-    #print(d.tolist())
-        
+    '''
+    emd.emd(x)
+    residual = emd.residual
+    io.savemat('residual6161.mat',{'res':residual})
+    io.savemat('timestream6161.mat',{'ts':x})
+    error = np.array(emd.error)
+    error.tofile('error.bin')
+    '''
+    nbytes, fo = emd.save(x,'rice_error')
+    print('nbytes is:',nbytes) 
+    #print(emd.residual)
+    recon = emd.load(fo)
+    fo.close()
+    #print(emd.error)
+    
+    #rice_encode.compress(emd.error,fo) 
+    print((np.array(x) - np.array(recon)).tolist())
+    #print(len(recon))
+     
     
         
 

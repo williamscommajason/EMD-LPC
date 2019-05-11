@@ -21,10 +21,11 @@ def decompress(f):
 
     else:
         nbytes = f.getbuffer().nbytes
-
+    
     while nbytes > f.tell(): 
 
         try:
+            diffed = struct.unpack('@?',f.read(struct.calcsize('?')))[0]
             k = struct.unpack('@i',f.read(struct.calcsize('i')))[0]
             size = struct.unpack('@Q',f.read(struct.calcsize('Q')))[0]         
             bString = ""
@@ -56,9 +57,13 @@ def decompress(f):
 
             signed = back_to_signed(unsigned)
 
+            if diffed == True:
+                for i in range(1,len(signed)):
+                    signed[i] += signed[i-1]
+            
             lists.append(signed)    
-        
-        except:
+         
+        except struct.error:
             return lists     
 
     return lists
