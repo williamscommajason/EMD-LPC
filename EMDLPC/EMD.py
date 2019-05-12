@@ -7,12 +7,12 @@ import struct
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-from EMDLPC.rice_encode import *
-from EMDLPC.rice_decode import *
-from EMDLPC.LPC import LPC
+from EMDLPC import rice_encode 
+from EMDLPC import rice_decode
+from EMDLPC import LPC
 from io import BytesIO
-from EMDLPC.dct_decode import *
-from EMDLPC.dct_encode import *
+from EMDLPC import dct_encode 
+from EMDLPC import dct_decode 
 import os
 import scipy
 import scipy.signal as sig
@@ -418,6 +418,11 @@ class EMD:
         signal = signal.astype('float64')
         
         pX = np.linalg.norm(x)**2
+         
+        if pX == 0:
+            self.siglen = [self.siglen]
+            
+            return self.siglen
 
         imfs = []
         iniResidual = 0
@@ -565,8 +570,7 @@ class EMD:
 
     
     def save(self,x,filename=None):
-
-        
+               
         if filename is not None:
             f = open(filename + '.emd','w+b')
             fd = open(filename + '1.emd', 'w+b')
@@ -578,23 +582,43 @@ class EMD:
             fd = BytesIO()
             fd1 = BytesIO()        
 
+   
         #FILTER
-
+     
         even = all([i%2 == 0 for i in x])
         
         fd1.write(struct.pack('@B',0))
         x_filtered = sig.lfilter(np.array([.5,-.5]),np.array([1.0]),x)
         
         fd1.write(struct.pack('@?',False))
-        fd1 = compress(x_filtered,fd1)
+        fd1 = rice_encode.compress(x_filtered,fd1)
         
         #EMD
         self.emd(x)
+        
+        if type(self.siglen) == list:
+ 
+            if filename is not None:
+                
+                fe = open(filename + '.bin','w+b')
+                fe.write(struct.pack('@I',0))
+                fe.write(struct.pack('@I',self.siglen[0]))
+
+                return fe.seek(0,os.SEEK_END), fe
+
+            else:
+                
+                fe = BytesIO()
+                fe.write(struct.pack('@I',0))
+                fe.write(struct.pack('@I',self.siglen[0]))
+
+                return fe.seek(0,os.SEEK_END), fe
+
         f.write(struct.pack('@B',1))
         fd.write(struct.pack('@B',1))
         
         #LPC
-        lpc = LPC(2,len(self.residual),len(self.residual))
+        lpc = LPC.LPC(2,len(self.residual),len(self.residual))
         lpc.lpc_fit(self.residual)
         lpc.get_fits(lpc.err)
         lpc.get_amp(lpc.err,lpc.h)
@@ -602,75 +626,116 @@ class EMD:
         fd = lpc.pack_residual(fd)
         sign, npts, frame_width, amp, gains, fits, f = lpc.unpack_residual(f)
         lpc.recon_err(npts, frame_width, amp, fits)
-        r_err = lpc.lpc_synth(lpc.aaa, gains, LPC.r_err, npts, frame_width)
+        r_err = lpc.lpc_synth(lpc.aaa, gains, LPC.LPC.r_err, npts, frame_width)
 
         
         self.make_lossless(r_err)
         #DCT
-        dct_output = dct_encode(self.error,.99)
-        dct_output1 = dct_encode(self.error,.999)
+        dct_output = dct_encode.dct_encode(self.error,.99)
+        dct_output1 = dct_encode.dct_encode(self.error,.999)
 
+        
         #Encoding  
-      
+        dct_nbytes = 0
+        dct_nbytes1 = 0
+
         for i in dct_output:
             if np.var(i) < np.var(np.diff(i)):
-                
-                f.write(struct.pack('@?',False))
-                f = compress(i,f)
-                
+                dct_nbytes  += rice_encode.pre_compress(np.diff(i))
+
+            else:      
+                dct_nbytes += rice_encode.pre_compress(i)
+
+        for i in dct_output1:
+            if np.var(i) < np.var(np.diff(i)):
+                dct_nbytes1 += rice_encode.pre_compress(np.diff(i))
+
             else:
-                ii = np.diff(i)
-                ii = ii.tolist()
-                ii.insert(0,i[0])
+                dct_nbytes1 += rice_encode.pre_compress(i)
+       
+        if dct_nbytes < dct_nbytes1:
+
+            for i in dct_output:
+                if np.var(i) < np.var(np.diff(i)):
                 
-                f.write(struct.pack('@?',True))
-                f = compress(ii,f)
-        
+                    f.write(struct.pack('@?',False))
+                    f = rice_encode.compress(i,f)
+                
+                else:
+                    ii = np.diff(i)
+                    ii = ii.tolist()
+                    ii.insert(0,i[0])
+                    #print(len(ii))
+                    f.write(struct.pack('@?',True))
+                    f = rice_encode.compress(ii,f)
+        else:
+
+            for i in dct_output1:
+                    if np.var(i) < np.var(np.diff(i)):
+
+                        f.write(struct.pack('@?',False))
+                        f = rice_encode.compress(i,f)
+
+                    else:
+                        ii = np.diff(i)
+                        ii = ii.tolist()
+                        ii.insert(0,i[0])
+                        #print(len(ii))
+                        f.write(struct.pack('@?',True))
+                        f = rice_encode.compress(ii,f)
+
         if np.var(np.diff(self.error)) < np.var(self.error): 
            
             derror = [int(x) for x in np.diff(self.error)]
             derror.insert(0,self.error[0])
             fd.write(struct.pack('@?',True))
            
-            fd = compress(derror,fd)
+            fd = rice_encode.compress(derror,fd)
             
         else:
             fd.write(struct.pack('@?',False))
-            fd = compress(self.error,fd)
+            fd = rice_encode.compress(self.error,fd)
          
         
  
         if f.seek(0,os.SEEK_END) > fd.seek(0,os.SEEK_END) and fd1.seek(0,os.SEEK_END) > fd.seek(0,os.SEEK_END):
-            #print('1') 
+            print('1') 
             return fd.seek(0,os.SEEK_END), fd, 
 
         elif fd.seek(0,os.SEEK_END) > f.seek(0,os.SEEK_END) and fd1.seek(0,os.SEEK_END) > f.seek(0,os.SEEK_END):
-            #print('2')
+            print('2')
             return f.seek(0,os.SEEK_END), f, 
 
         elif even == True:
-            #print('3')    
+            print('3')    
             return fd1.seek(0,os.SEEK_END), fd1
 
         elif fd.seek(0, os.SEEK_END) > f.seek(0,os.SEEK_END):
-            #print('4')
+            print('4')
             return f.seek(0,os.SEEK_END), f
 
         else:
-            #print('5')
+            print('5')
             return fd.seek(0,os.SEEK_END), fd
             
         
     def load(self,f):
 
-        sign, npts, frame_width, amp, gains, fits, f = LPC.unpack_residual(f)                
+        if f.seek(0,os.SEEK_END) == 8:
+            f.seek(0)
+            value = struct.unpack('@I',f.read(struct.calcsize('I')))[0]
+            siglen = struct.unpack('@I',f.read(struct.calcsize('I')))[0]
+
+            return np.array([0 for x in range(siglen)])
+
+        sign, npts, frame_width, amp, gains, fits, f = LPC.LPC.unpack_residual(f)                
         
         if sign == 1:
-            lpc = LPC(2, frame_width, npts)
-            LPC.recon_err(npts, frame_width, amp, fits)
-            r_err = lpc.lpc_synth(lpc.aaa, gains, LPC.r_err, npts, frame_width)
+            lpc = LPC.LPC(2, frame_width, npts)
+            LPC.LPC.recon_err(npts, frame_width, amp, fits)
+            r_err = lpc.lpc_synth(lpc.aaa, gains, LPC.LPC.r_err, npts, frame_width)
             
-            lists = decompress(f)
+            lists = rice_decode.decompress(f)
             
             if len(lists) == 1:
                 error = lists[0]
@@ -682,7 +747,7 @@ class EMD:
                         error[i] += error[i-1] 
                 '''
             else:
-                error = decode(lists[0],lists[1],lists[2])
+                error = dct_decode.decode(lists[0],lists[1],lists[2])
         
         
             r_sig = error + r_err
@@ -691,13 +756,48 @@ class EMD:
             
             f.seek(1)
             
-            lists = decompress(f)
+            lists = rice_decode.decompress(f)
             
             x_filtered = lists[0]
             r_sig = x_filtered = sig.lfilter(np.array([1.0]),np.array([.5,-.5]),x_filtered)
             
         return [int(round(x)) for x in r_sig]
-
+    
+    @staticmethod
+    def run_length_encode(input_string):
+        count = 1
+        prev = ''
+        lst = []
+        for character in input_string:
+            if character != prev:
+                if prev:
+                    #entry = (prev,count)
+                    lst.append(int(prev))
+                    lst.append(count)
+                    #print lst
+                count = 1
+                prev = character
+            else:
+                count += 1
+        else:
+            try:
+                #entry = (character,count)
+                lst.append(int(character))
+                lst.append(count)
+                return (lst, 0)
+            except Exception as e:
+                print("Exception encountered {e}".format(e=e)) 
+                return (e, 1)
+    
+    @staticmethod 
+    def run_length_decode(lst):
+        q = ""
+        for character, count in lst:
+            q += character * count
+        return q
+    
+    
+     
  
 if __name__ == "__main__":
     
@@ -713,7 +813,7 @@ if __name__ == "__main__":
     
 
     x = np.floor(np.random.normal(size=1200,scale=20,loc=0)) 
-    x = np.load('timestream1001.npy')
+    #x = np.load('timestream1002.npy')[:1000]
     #fo = open('rice_error.bin','w+b')
     
     emd = EMD()
@@ -725,6 +825,7 @@ if __name__ == "__main__":
     error = np.array(emd.error)
     error.tofile('error.bin')
     '''
+    #x = np.zeros(100)
     nbytes, fo = emd.save(x,'rice_error')
     print('nbytes is:',nbytes) 
     #print(emd.residual)
@@ -735,7 +836,12 @@ if __name__ == "__main__":
     #rice_encode.compress(emd.error,fo) 
     print((np.array(x) - np.array(recon)).tolist())
     #print(len(recon))
-     
+    '''
+    rl = emd.run_length_encode(bString)
+    print(rl)
+    rl_nbytes = rice_encode.pre_compress(rl[0])
+    a = BitStream().join([BitArray(se=i) for i in rl[0]])
+    print(len(a)/8)
+    print(rl_nbytes) 
+    ''' 
     
-        
-

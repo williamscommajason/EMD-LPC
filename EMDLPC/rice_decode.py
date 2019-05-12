@@ -12,22 +12,22 @@ def decompress(f):
 
     
     #with open(filename, "rb") as f:
-
+    
     lists = []
     byte = ""
-
-    if isinstance(f, io.BufferedRandom):
-        nbytes = os.stat(f.fileno()).st_size
+    if isinstance(f,io.BufferedRandom):
+        nbytes = os.fstat(f.fileno()).st_size
 
     else:
         nbytes = f.getbuffer().nbytes
     
     while nbytes > f.tell(): 
-
-        try:
-            diffed = struct.unpack('@?',f.read(struct.calcsize('?')))[0]
+        
+        try: 
+            diffed = struct.unpack('@?',f.read(struct.calcsize('?')))[0]                   
             k = struct.unpack('@i',f.read(struct.calcsize('i')))[0]
             size = struct.unpack('@Q',f.read(struct.calcsize('Q')))[0]         
+            
             bString = ""
 
             for i in range(size): 
@@ -42,29 +42,29 @@ def decompress(f):
 
                 bString = bString + binary
                              
-    
+        
             codes = decode_bitString(bString,k)
             rice_dictionary = rice_dict(k,50)
    
             unsigned = []
-    
-
+            
+            
             for i in codes:
                 if i in rice_dictionary.keys():
                     unsigned.append(rice_dictionary[i])
                 else:
                     unsigned.append(decode_rice_byte(i,k))
-
+            
+            
             signed = back_to_signed(unsigned)
-
             if diffed == True:
                 for i in range(1,len(signed)):
                     signed[i] += signed[i-1]
             
             lists.append(signed)    
-         
+            
         except struct.error:
-            return lists     
+            return lists
 
     return lists
             
@@ -121,7 +121,7 @@ def decode_bitString(bString, k):
                     bit = next(bString)
                     remainder = remainder + bit    
                 codes.append(quotient + remainder)
-
+        
         except StopIteration:
             #print("Last element was: ", bit)
             break

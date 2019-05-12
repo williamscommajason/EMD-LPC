@@ -3,6 +3,7 @@ import scipy.io
 import math
 import numpy as np
 from io import BytesIO
+import os
 
 def put_bit(f, b):
 
@@ -21,12 +22,12 @@ def put_bit(f, b):
 def rice_code(f, x, k):
 
     q = x / (1 << k)
-    q = int(q)                       
-
+    q = int(q)
+ 
     for i in range(q): 
         put_bit(f, 1)
     put_bit(f, 0)
-
+    
     for i in range(k-1, -1, -1):
         put_bit(f, (x >> i) & 1)
 
@@ -47,25 +48,26 @@ def signed_to_unsigned(L):
 #
 
 def pre_compress(L):
-     
+    fp = BytesIO() 
     L = signed_to_unsigned(L)   
     k = get_k(L)
-    f = BytesIO()
+    
     global buff, filled
 
     buff = 0
     filled = 0
     
     for x in L:                # encode all numbers
-        rice_code(f, x, k)
+        rice_code(fp, x, k)
         
     
     for i in range(8-filled):  # write the last byte (if necessary pad with 1111...)  
-        put_bit(f, 1)
+        put_bit(fp, 1)
     
-    return f.tell()
+    return fp.tell()
 
 def compress(L,fd):
+    
     
     size = pre_compress(L)
     L = signed_to_unsigned(L)
@@ -73,7 +75,7 @@ def compress(L,fd):
     
     fd.write(struct.pack('@i',k))
     fd.write(struct.pack('@Q',size))
-
+    
     buff = 0
     filled = 0
     
@@ -87,26 +89,67 @@ def compress(L,fd):
 
     return fd
 
+def compress_partition(L,fd,partition):
+
+     for i in range(partition):
+         pL = L[i*964:(i+1)*964]
+         print(pL)
+         fd = compress(np.diff(pL),fd)
+
+     return fd
+
 def get_k(error):
 
     rice_base = [2**i for i in range(64)]
 
     std = math.sqrt(np.var(error))
     k = rice_base.index(min(rice_base, key = lambda x:abs(x-std)))
-
+    
     return k
 
 if __name__ == '__main__':
     import bitstring
     from bitstring import BitArray
     from bitstring import BitStream
-
+    from rice_decode import decompress
     print(struct.pack('BBB', 0b00010010, 0b00111001, 0b01111111))      #see http://fr.wikipedia.org/wiki/Codage_de_Rice#Exemples
+    import numpy as np
+    x = np.load('timestream6161.npy')
+    dx = np.diff(x)
+    import scipy.io as io
     fd = open('rice.bin', 'w+b')
+    
+    #fd = BytesIO() 
     #print(pre_compress([-1,-2,-3,0]))
-    fd = compress([-1,-2,-3,0],fd)
-    fd = compress([-1,-2,-3,0],fd)
-    fd.close()
+    diffs = io.loadmat('diffs.mat')['diffs'][0]
+    points = io.loadmat('points.mat')['points'][0]
+    mins = io.loadmat('mins.mat')['mins'][0]
+    maxs = io.loadmat('maxs.mat')['maxs'][0]
+    sub = io.loadmat('sub.mat')['sub'][0]
+    error = io.loadmat('error.mat')['error'][0]
+    est_x = io.loadmat('estx.mat')['est_x'][0]
+    pdf = io.loadmat('pdf.mat')['pdf'][0]
+    diffs = diffs[~np.isnan(diffs)]
+    diffs = [int(round(x)) for x in diffs]
+    print(dx)
+    fd = compress([1,2,3,4,5,6,7,8,9,10],fd)
+    lists,bString = decompress(fd)
+    count = 0
+    for i in bString:
+        if i == '1':
+            count += 1
+    print(count)
+    print(len(bString) - count)
+    print(count/len(bString))
+    a = BitStream().join([BitArray(se=i) for i in pdf])
+    print(len(a)/8)  
+    #fd = compress(np.diff(points),fd)
+    #fd = compress(np.diff(mins),fd)
+    #fd = compress(np.diff(maxs),fd)
+    
+   
+    #a = BitStream().join([BitArray(se=i) for i in diffs])
+    #print(len(a)/8)
     ''' 
     x = np.load('timestream1019.npy')
     dx = np.diff(x)
