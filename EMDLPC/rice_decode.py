@@ -15,7 +15,7 @@ def decompress(f):
     
     lists = []
     byte = ""
-    if isinstance(f,io.BufferedRandom):
+    if isinstance(f,io.BufferedRandom) or isinstance(f,io.BufferedReader):
         nbytes = os.fstat(f.fileno()).st_size
 
     else:
