@@ -47,7 +47,7 @@ class EMD:
         """
 
         self.osc = 1
-        self.resolution = 20
+        self.resolution = 2
         self.p_resid = 1
         self.alpha = 1
         self.sample_rate = None
@@ -451,9 +451,9 @@ class EMD:
             botenv = CubicSpline(parabolicMin[:,0],parabolicMin[:,1])
             mean = (botenv(t) + topenv(t))/2
 
-            iterations = 0
+            self.inner_iterations = 0
 
-            while True:
+            while True or self.inner_iter <= 1000:
                 
                 pImf = np.linalg.norm(iImf)**2
                 pMean = np.linalg.norm(mean)**2
@@ -485,7 +485,7 @@ class EMD:
                 botenv = CubicSpline(parabolicMin[:,0], parabolicMin[:,1])
                 mean = (topenv(t) + botenv(t))/2
 
-                iterations += 1
+                self.inner_iter += 1
             
             self.textrema.append(parabolicMax[:,0])
             self.yextrema.append(parabolicMax[:,1])
@@ -699,23 +699,36 @@ class EMD:
         
  
         if f.seek(0,os.SEEK_END) > fd.seek(0,os.SEEK_END) and fd1.seek(0,os.SEEK_END) > fd.seek(0,os.SEEK_END):
-            print('1') 
+i           print('1') 
+            if filename is not None:
+                os.remove(filename + '.emd')
+                os.remove(filename + '2.emd')
             return fd.seek(0,os.SEEK_END), fd, 
 
         elif fd.seek(0,os.SEEK_END) > f.seek(0,os.SEEK_END) and fd1.seek(0,os.SEEK_END) > f.seek(0,os.SEEK_END):
             print('2')
+            if filename is not None:
+                os.remove(filename + '1.emd')
+                os.remove(filename + '2.emd')
             return f.seek(0,os.SEEK_END), f, 
 
         elif even == True:
             print('3')    
+            
             return fd1.seek(0,os.SEEK_END), fd1
 
         elif fd.seek(0, os.SEEK_END) > f.seek(0,os.SEEK_END):
             print('4')
+            if filename is not None:
+                os.remove(filename + '1.emd')
+                os.remove(filename + '2.emd')
             return f.seek(0,os.SEEK_END), f
 
         else:
             print('5')
+            if filename is not None:
+                os.remove(filename + '.emd')
+                os.remove(filename + '2.emd')
             return fd.seek(0,os.SEEK_END), fd
             
         
@@ -826,7 +839,7 @@ if __name__ == "__main__":
     error.tofile('error.bin')
     '''
     #x = np.zeros(100)
-    nbytes, fo = emd.save(x,'rice_error')
+    nbytes, fo = emd.save(x)
     print('nbytes is:',nbytes) 
     #print(emd.residual)
     recon = emd.load(fo)
