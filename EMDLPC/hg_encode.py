@@ -70,7 +70,7 @@ def make_leaf(start, k):
             even_bits.remove(even_bit)
             continue
         even_pad = even - 1 - left_count
-        count = 0
+        count = 1
         while count < even_pad:
             even_bit = padding(even_bit)
             count += 1
