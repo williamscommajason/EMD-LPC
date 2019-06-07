@@ -14,6 +14,8 @@ def decompress(f):
     #with open(filename, "rb") as f:
     
     lists = []
+    lists_l_av = []
+
     byte = ""
     if isinstance(f,io.BufferedRandom) or isinstance(f,io.BufferedReader):
         nbytes = os.fstat(f.fileno()).st_size
@@ -47,7 +49,14 @@ def decompress(f):
             rice_dictionary = rice_dict(k,50)
    
             unsigned = []
-            
+            count = 0
+            total_len = 0
+
+            for i in codes:
+                count += 1
+                total_len += len(i)
+
+            lists_l_av.append(total_len/count)
             
             for i in codes:
                 if i in rice_dictionary.keys():
@@ -64,9 +73,9 @@ def decompress(f):
             lists.append(signed)    
             
         except struct.error:
-            return lists
+            return lists, lists_l_av
 
-    return lists
+    return lists, lists_l_av
             
 
 def decode_bitString(bString, k):
