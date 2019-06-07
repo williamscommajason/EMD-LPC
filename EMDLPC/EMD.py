@@ -748,7 +748,7 @@ i           print('1')
             LPC.LPC.recon_err(npts, frame_width, amp, fits)
             r_err = lpc.lpc_synth(lpc.aaa, gains, LPC.LPC.r_err, npts, frame_width)
             
-            lists = rice_decode.decompress(f)
+            lists, l_av = rice_decode.decompress(f)
             
             if len(lists) == 1:
                 error = lists[0]
@@ -769,7 +769,7 @@ i           print('1')
             
             f.seek(1)
             
-            lists = rice_decode.decompress(f)
+            lists, l_av = rice_decode.decompress(f)
             
             x_filtered = lists[0]
             r_sig = x_filtered = sig.lfilter(np.array([1.0]),np.array([.5,-.5]),x_filtered)
