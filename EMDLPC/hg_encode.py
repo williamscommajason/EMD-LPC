@@ -5,6 +5,7 @@ from io import BytesIO
 import rice_encode
 import scipy.io as io
 from rice_encode import signed_to_unsigned
+from rice_encode import get_k
 
 class Node(object):
     pass
@@ -197,18 +198,16 @@ def put_bit(f,b):
 
 
 def hybrid_encode(f, x, dictionary):
-
     code = dictionary[str(x)] 
 
     for bit in code:
         put_bit(f, int(bit))
 
 def pre_compress(L, level, k):
-    L = signed_to_unsigned(L)
+   
 
     fd = BytesIO()
     tree, dictionary = make_hybrid_tree(level,k)
-
     global buff,filled 
     buff = 0
     filled = 0
@@ -221,9 +220,10 @@ def pre_compress(L, level, k):
 
     return fd.tell(),dictionary
 
-def compress(f,L, level, k):
-
+def compress(f,L, level):
+    k = get_k(L) + 1
     L = signed_to_unsigned(L)
+    
     size,dictionary = pre_compress(L, level, k)
     
 
@@ -248,6 +248,7 @@ def compress(f,L, level, k):
 if __name__ == '__main__':
     from EMDLPC import EMD
     import collections
+    from rice_encode import get_k
     x = np.load('timestream1001.npy')
     emd = EMD.EMD()
     emd.save(x)
@@ -259,9 +260,11 @@ if __name__ == '__main__':
      
     fp = BytesIO()
     #fp = compress(fp,L,4,0)
-    print(fp.tell())
-    error = io.loadmat('error.mat')['error'][0]
-    error = [int(x) for x in error]
-    fp = compress(fp,emd.error,15,11)
+    
+    error = emd.error
+    error = [int(x) for x in np.diff(error)]
+    #for i in range(3):
+    #    fp = compress(fp,L,10)
+    fp = compress(fp,error,15)
     print(fp.tell())
     
