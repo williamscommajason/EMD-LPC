@@ -57,7 +57,7 @@ def make_hybrid_tree(level,k):
     
     while j <= 2**(k+1) - 1:
         code = rice_code(j,k)
-        dictionary[code] = j
+        dictionary[str(j)] = code
         j += 1
     
     left_count = ''
@@ -73,7 +73,6 @@ def make_hybrid_tree(level,k):
         
         i += 1
 
-    print(dictionary)
     return tree , dictionary
     
     
@@ -199,11 +198,9 @@ def put_bit(f,b):
 
 def hybrid_encode(f, x, dictionary):
 
-    
     code = dictionary[str(x)] 
 
     for bit in code:
-        print(bit , code)
         put_bit(f, int(bit))
 
 def pre_compress(L, level, k):
@@ -222,16 +219,16 @@ def pre_compress(L, level, k):
     for i in range(8-filled):
         put_bit(fd,1)
 
-    return fd.tell()
+    return fd.tell(),dictionary
 
 def compress(f,L, level, k):
 
     L = signed_to_unsigned(L)
-    size = pre_compress(L, level, k)
-    tree,dictionary = make_hybrid_tree(level,k)
+    size,dictionary = pre_compress(L, level, k)
+    
 
-    #f.write(struct.pack('@i',k))
-    #f.write(struct.pack('@Q',size))
+    f.write(struct.pack('@i',k))
+    f.write(struct.pack('@Q',size))
 
     buff = 0
     filled = 0
@@ -250,15 +247,21 @@ def compress(f,L, level, k):
 
 if __name__ == '__main__':
     from EMDLPC import EMD
-    x = np.load('timestream1000.npy')[:100]
+    import collections
+    x = np.load('timestream1001.npy')
     emd = EMD.EMD()
     emd.save(x)
     L = [2,3,4,5,5,6]
-    tree = make_hybrid_tree(4,0)
+    #tree, dictionary = make_hybrid_tree(4,0)
+    tree,dictionary = make_hybrid_tree(5,2)
+    #sorted_dict = {k: v for k, v in sorted(dictionary.items(), key=lambda x: x[1])}
+    #print(sorted_dict)
+     
     fp = BytesIO()
     #fp = compress(fp,L,4,0)
     print(fp.tell())
     error = io.loadmat('error.mat')['error'][0]
     error = [int(x) for x in error]
-    fp = compress(fp,emd.error,13,0)
+    fp = compress(fp,emd.error,15,11)
     print(fp.tell())
+    
