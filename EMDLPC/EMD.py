@@ -61,6 +61,8 @@ class EMD:
         self.encoding = True
         self.error = []
         self.p = []
+        self.iterations = 0
+        self.inner_iter = 0
 
         for key in config.keys():
             if key in self.__dict__.keys():
@@ -431,7 +433,7 @@ class EMD:
         self.textrema = []
         self.yextrema = []
  
-        while finished == False and iniResidual < self.p_resid:
+        while finished == False and iniResidual < self.p_resid and self.iterations <= 10:
 
             iImf = signal
             pSig = np.linalg.norm(signal)**2
@@ -451,7 +453,7 @@ class EMD:
             botenv = CubicSpline(parabolicMin[:,0],parabolicMin[:,1])
             mean = (botenv(t) + topenv(t))/2
 
-            self.inner_iterations = 0
+            self.inner_iter = 0
 
             while True or self.inner_iter <= 1000:
                 
@@ -490,6 +492,7 @@ class EMD:
             self.textrema.append(parabolicMax[:,0])
             self.yextrema.append(parabolicMax[:,1])
             
+            self.iterations += 1
             #if iterations == 1:
             #    self.p = np.polyfit(parabolicMax[:,0],parabolicMax[:,1],20)
 
@@ -699,7 +702,7 @@ class EMD:
         
  
         if f.seek(0,os.SEEK_END) > fd.seek(0,os.SEEK_END) and fd1.seek(0,os.SEEK_END) > fd.seek(0,os.SEEK_END):
-i           print('1') 
+            print('1') 
             if filename is not None:
                 os.remove(filename + '.emd')
                 os.remove(filename + '2.emd')
